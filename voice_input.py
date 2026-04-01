@@ -1,42 +1,67 @@
-#!/Library/Developer/CommandLineTools/usr/bin/python3
+#!/usr/bin/env python3
 """
-Whisper 语音输入工具
-- 按住 Option(⌥) 键录音，松开后自动转写并粘贴到当前光标位置
-- 支持 openai-whisper（CPU/MPS）和 mlx-whisper（Apple Silicon 推荐）
+Whisper voice input for macOS — hold Option (⌥) to record,
+release to transcribe and paste at the cursor.
 
-权限要求（首次运行会弹出提示）：
-  系统设置 → 隐私与安全性 → 辅助功能 → 添加「终端」
-  系统设置 → 隐私与安全性 → 麦克风 → 添加「终端」
+Requires permissions in System Settings → Privacy & Security:
+  - Accessibility (to simulate Cmd+V paste)
+  - Microphone (to record audio)
 """
 
 import sys
+import json
 import queue
 import threading
 import time
 import subprocess
+from pathlib import Path
 
+import yaml
 import numpy as np
 import sounddevice as sd
 
-# ── 配置 ──────────────────────────────────────────────────────────
-BACKEND     = "mlx"            # "whisper" 或 "mlx"（Apple Silicon 更快）
-MODEL_NAME  = "large-v3"       # tiny / base / small / medium / large / large-v2 / large-v3
-LANGUAGE    = "zh"             # "zh" 中文，None 自动检测
-SAMPLE_RATE = 16000            # Whisper 固定 16kHz
-TRIGGER_KEY = "alt_l"          # 触发键："alt_l"=左Option，"alt_r"=右Option，"ctrl"，"f5" 等
+# ── Load config ───────────────────────────────────────────────────
+_cfg_path = Path(__file__).parent / "config.yaml"
+with open(_cfg_path) as f:
+    _cfg = yaml.safe_load(f)
+
+BACKEND     = _cfg["backend"]
+MODEL_NAME  = _cfg["model_name"]
+LANGUAGE    = _cfg["language"]
+SAMPLE_RATE = _cfg["sample_rate"]
+TRIGGER_KEY = _cfg["trigger_key"]
 # ─────────────────────────────────────────────────────────────────
 
-# ── 加载模型 ──────────────────────────────────────────────────────
-print(f"[*] 加载 {BACKEND}/{MODEL_NAME} 模型，请稍候...")
+# ── Load model ────────────────────────────────────────────────────
+print(f"[*] Loading {BACKEND}/{MODEL_NAME} model...")
 
 if BACKEND == "mlx":
     import mlx_whisper
-    MLX_REPO = f"mlx-community/whisper-{MODEL_NAME}-mlx"
+    from huggingface_hub import snapshot_download, try_to_load_from_cache
+
+    # turbo models use a different repo naming convention (no -mlx suffix)
+    _MLX_REPOS = {
+        "large-v3-turbo": "mlx-community/whisper-large-v3-turbo",
+    }
+    MLX_REPO = _MLX_REPOS.get(MODEL_NAME, f"mlx-community/whisper-{MODEL_NAME}-mlx")
+
+    # check cache before proceeding; prompt user if download is required
+    _cached = try_to_load_from_cache(MLX_REPO, "config.json")
+    if _cached is None:
+        print(f"[!] Model '{MLX_REPO}' is not cached locally.")
+        _ans = input("    Download now? This may take a few minutes. [y/N] ").strip().lower()
+        if _ans != "y":
+            print("[*] Aborted.")
+            sys.exit(0)
+        print(f"[*] Downloading {MLX_REPO}...")
+        snapshot_download(MLX_REPO)
+        print("[*] Download complete.")
+
     transcribe_fn = lambda audio: mlx_whisper.transcribe(
         audio, path_or_hf_repo=MLX_REPO, language=LANGUAGE,
         initial_prompt="以下是普通话的简体中文转录。"
     )
-    print(f"[*] MLX 模型加载完成（{MLX_REPO}）")
+    print(f"[*] MLX model ready ({MLX_REPO})")
 else:
     import whisper
     _model = whisper.load_model(MODEL_NAME)
@@ -44,24 +69,23 @@ else:
         audio, language=LANGUAGE, fp16=False, without_timestamps=True,
         initial_prompt="以下是普通话的简体中文转录。"
     )
-    print(f"[*] Whisper {MODEL_NAME} 加载完成")
+    print(f"[*] Whisper {MODEL_NAME} ready")
 
-print(f"[*] 按住左 Option(⌥) 键开始录音，松开转写并粘贴。Ctrl+C 退出。\n")
+print(f"[*] Hold Left Option (⌥) to record, release to transcribe. Ctrl+C to quit.\n")
 
-# ── 运行时状态 ────────────────────────────────────────────────────
+# ── Runtime state ─────────────────────────────────────────────────
 import pyperclip
 from pynput import keyboard
 from pynput.keyboard import Controller, Key
 
-kb_ctrl        = Controller()
-is_recording   = False
-audio_chunks   = []
-stream         = None
-lock           = threading.Lock()
-target_app     = None   # 按下热键时记录的 frontmost app
-work_queue     = queue.Queue()  # 转写任务传回主线程，避免 daemon thread 中调用 torch 导致 segfault
+kb_ctrl      = Controller()
+is_recording = False
+audio_chunks = []
+stream       = None
+lock         = threading.Lock()
+target_app   = None
+work_queue   = queue.Queue()  # pass work to main thread to avoid segfault in daemon threads
 
-# 解析触发键
 KEY_MAP = {"alt": Key.alt, "alt_l": Key.alt_l, "alt_r": Key.alt_r,
            "ctrl": Key.ctrl, "cmd": Key.cmd,
            "shift": Key.shift, "f5": Key.f5, "f6": Key.f6}
@@ -69,7 +93,7 @@ _trigger = KEY_MAP.get(TRIGGER_KEY.lower(), Key.alt)
 
 
 def get_frontmost_app():
-    """获取当前 frontmost app 名称（用于转写后切回）"""
+    """Return the name of the current frontmost application."""
     r = subprocess.run(
         ['osascript', '-e',
          'tell application "System Events" to get name of first application process whose frontmost is true'],
@@ -79,15 +103,13 @@ def get_frontmost_app():
 
 
 def paste_via_osascript(app_name, text):
-    """按进程名激活 app，再用 pynput 发送 Cmd+V"""
-    # 只用 osascript 激活窗口（不发按键，无需额外权限）
+    """Bring app to front via osascript, then send Cmd+V via pynput."""
     subprocess.run(['osascript', '-e', f'''
         tell application "System Events"
             set frontmost of process "{app_name}" to true
         end tell
     '''])
     time.sleep(0.2)
-    # 用 pynput Controller 发 Cmd+V（Terminal 辅助功能权限）
     with kb_ctrl.pressed(Key.cmd):
         kb_ctrl.tap("v")
 
@@ -134,16 +156,15 @@ def stop_and_transcribe():
 
     audio = np.concatenate(audio_chunks, axis=0).flatten()
 
-    # 静音检测
     if np.sqrt(np.mean(audio ** 2)) < 0.001:
         print("  (静音，已跳过)    ")
         return
 
-    # 把 (audio, app) 交给主线程转写，避免在 daemon thread 调用 torch/C 扩展导致 segfault
+    # hand off to main thread — calling torch/C extensions from a daemon thread causes segfault
     work_queue.put((audio, target_app))
 
 
-# ── 热键监听 ──────────────────────────────────────────────────────
+# ── Hotkey listener ───────────────────────────────────────────────
 _pressed = set()
 
 def on_press(key):
@@ -160,16 +181,20 @@ def on_release(key):
 listener = keyboard.Listener(on_press=on_press, on_release=on_release)
 listener.start()
 
+
 def process_transcription(audio, app):
-    """在主线程执行 whisper 转写，避免 daemon thread 中的 segfault"""
+    """Run whisper transcription on the main thread to avoid daemon-thread segfault."""
+    t0 = time.perf_counter()
     result = transcribe_fn(audio)
+    elapsed = time.perf_counter() - t0
+
     text = result["text"].strip()
 
     if not text:
         print("  (无识别结果)      ")
         return
 
-    # 英文标点 → 中文全角标点
+    # normalize punctuation: English → Chinese full-width
     PUNCT_MAP = {
         ",": "，",
         "?": "？",
@@ -182,11 +207,10 @@ def process_transcription(audio, app):
     for en, zh in PUNCT_MAP.items():
         text = text.replace(en, zh)
 
-    # 末尾去掉句号（包括英文句号已被上面逻辑处理前的中文句号）
     text = text.rstrip("。")
 
     ts = time.strftime("%H:%M:%S")
-    print(f"\n✓ [{app}] {ts}\n{text}")
+    print(f"\n✓ [{app}] {ts}\n{text}\n{'─' * 30}\n  ⏱ {elapsed:.1f}s")
 
     pyperclip.copy(text)
     paste_via_osascript(app, text)
@@ -200,6 +224,6 @@ try:
         except queue.Empty:
             pass
 except KeyboardInterrupt:
-    print("\n[*] 退出")
+    print("\n[*] Exiting")
     listener.stop()
     sys.exit(0)

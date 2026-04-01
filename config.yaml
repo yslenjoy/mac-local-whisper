@@ -1,0 +1,14 @@
+# backend: "mlx" (Apple Silicon) or "whisper" (CPU)
+backend: mlx
+
+# model: tiny / base / small / medium / large / large-v2 / large-v3 / large-v3-turbo
+model_name: large-v3-turbo
+
+# language: "zh" for Mandarin, null for auto-detect
+language: zh
+
+# sample rate: whisper requires 16000 Hz
+sample_rate: 16000
+
+# trigger key: alt_l / alt_r / ctrl / cmd / f5 / f6
+trigger_key: alt_l

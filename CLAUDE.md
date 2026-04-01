@@ -8,7 +8,8 @@ macOS 语音输入工具，按住 Option 键录音，松开自动转写粘贴。
 
 ## 项目结构
 
-- `voice_input.py` — 主程序，顶部配置项可直接修改
+- `voice_input.py` — 主程序，所有注释必须用英文
+- `config.yaml` — 用户配置文件（backend / model / language / trigger_key 等）
 - `FUTURE.md` — bug 记录和待办事项，完成后打勾并注明日期
 
 ## 当前配置

@@ -11,7 +11,7 @@
 ```bash
 git clone https://github.com/yslenjoy/whisper-voice-input.git
 cd whisper-voice-input
-pip3 install mlx-whisper sounddevice pyperclip pynput numpy
+pip3 install mlx-whisper sounddevice pyperclip pynput numpy pyyaml
 ```
 
 首次运行时会自动从 HuggingFace 下载模型（默认 `large-v3`），之后缓存本地。
@@ -52,6 +52,16 @@ python3 voice_input.py
 | 变量 | 默认值 | 说明 |
 |---|---|---|
 | `BACKEND` | `"mlx"` | `"mlx"`（Apple Silicon）或 `"whisper"`（CPU） |
-| `MODEL_NAME` | `"large-v3"` | 模型大小，越大越准，推荐 `large-v3` |
+| `MODEL_NAME` | `"large-v3-turbo"` | 见下方模型表格 |
 | `LANGUAGE` | `"zh"` | `"zh"` 中文，`None` 自动检测 |
 | `TRIGGER_KEY` | `"alt_l"` | 触发键，默认左 Option |
+
+### 模型选择
+
+| 模型 | 速度 | 准确度 | 说明 |
+|---|---|---|---|
+| `large-v3-turbo` | ★★★★★ | ★★★★☆ | **推荐**。比 large-v3 快 6 倍，准确度接近 large-v2 |
+| `large-v3` | ★★☆☆☆ | ★★★★★ | 最准，速度慢 |
+| `large-v2` | ★★☆☆☆ | ★★★★☆ | 比 v3 略快 |
+| `medium` | ★★★★☆ | ★★★☆☆ | 老设备的折中选择 |
+| `small` | ★★★★★ | ★★☆☆☆ | 速度最快，准确度一般 |
