@@ -9,6 +9,7 @@ Requires permissions in System Settings → Privacy & Security:
 """
 
 import sys
+import re
 import json
 import queue
 import threading
@@ -205,6 +206,9 @@ def process_transcription(audio, app):
     elapsed = time.perf_counter() - t0
 
     text = result["text"].strip()
+    # strip trailing hallucinated garbage (non-printable / repeated non-CJK symbols)
+    text = re.sub(r'[\x00-\x08\x0b-\x1f\x7f-\x9f]+', '', text)
+    text = re.sub(r'([^\w\u4e00-\u9fff ])\1{3,}', '', text).strip()
 
     if not text:
         print("  (无识别结果)      ")

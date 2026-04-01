@@ -11,7 +11,7 @@ macOS 语音输入工具，按住 Option 键录音，松开自动转写粘贴。
 - `voice_input.py` — 主程序，所有注释必须用英文
 - `config.yaml` — 用户配置文件（backend / model / language / trigger_key / initial_prompt）
 - `README.md` — 中文主文档；`README_en.md` — 英文版，两者必须同步
-- `FUTURE.md` — bug 记录和待办事项，完成后打勾并注明日期
+- `FUTURE.md` — bug 记录和待办事项；完成后移至「已完成」并保留原优先级标注（如 `P0 ·`），注明日期
 
 ## 当前配置
 
