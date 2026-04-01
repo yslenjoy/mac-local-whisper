@@ -19,8 +19,8 @@ import numpy as np
 import sounddevice as sd
 
 # ── 配置 ──────────────────────────────────────────────────────────
-BACKEND     = "whisper"        # "whisper" 或 "mlx"（Apple Silicon 更快）
-MODEL_NAME  = "large"          # tiny / base / small / medium / large / large-v2 / large-v3
+BACKEND     = "mlx"            # "whisper" 或 "mlx"（Apple Silicon 更快）
+MODEL_NAME  = "large-v3"       # tiny / base / small / medium / large / large-v2 / large-v3
 LANGUAGE    = "zh"             # "zh" 中文，None 自动检测
 SAMPLE_RATE = 16000            # Whisper 固定 16kHz
 TRIGGER_KEY = "alt_l"          # 触发键："alt_l"=左Option，"alt_r"=右Option，"ctrl"，"f5" 等
@@ -33,7 +33,8 @@ if BACKEND == "mlx":
     import mlx_whisper
     MLX_REPO = f"mlx-community/whisper-{MODEL_NAME}-mlx"
     transcribe_fn = lambda audio: mlx_whisper.transcribe(
-        audio, path_or_hf_repo=MLX_REPO, language=LANGUAGE
+        audio, path_or_hf_repo=MLX_REPO, language=LANGUAGE,
+        initial_prompt="以下是普通话的简体中文转录。"
     )
     print(f"[*] MLX 模型加载完成（{MLX_REPO}）")
 else:

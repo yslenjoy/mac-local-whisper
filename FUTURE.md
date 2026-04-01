@@ -17,7 +17,7 @@ P0
   - [x] 用中文逗号而不是英文的
 
 P1
-- [ ] 改成mlxwhisper 
+- [x] 改成mlx-whisper（2026-04-01）：BACKEND=mlx, MODEL_NAME=large-v3，补 initial_prompt
 - [x] 长句识别不准（2026-04-01）：模型大小问题，medium → large；后续切 mlx-whisper 后速度可跟上
   
 P2
