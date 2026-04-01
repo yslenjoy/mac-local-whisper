@@ -16,9 +16,13 @@ P0
   - [x] 末尾不要句号
   - [x] 用中文逗号而不是英文的
 
+- [x] 句间标点（2026-04-01）：末尾句号替换为空格，连续录音粘贴后句子之间有自然间隔
+- [ ] 架构：post-processing 规则（标点替换、末尾去句号等）硬编码在主流程里，应拆到独立模块/配置，和 pipeline 解耦，方便扩展自定义规则
+
 P1
 - [x] 改成mlx-whisper（2026-04-01）：BACKEND=mlx, MODEL_NAME=large-v3，补 initial_prompt
 - [x] 长句识别不准（2026-04-01）：模型大小问题，medium → large；后续切 mlx-whisper 后速度可跟上
   
 P2
 - [ ] 流式输出
+- [ ] post-processing 规则与 Whisper initial_prompt 融合：探索把标点/格式规则直接通过 prompt 引导模型输出，而不是事后字符串替换，两者职责更清晰

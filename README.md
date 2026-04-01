@@ -1,17 +1,12 @@
-# Whisper Voice Input
+# Whisper 语音输入
 
-**English** | [中文](README_zh.md)
+[English](README_en.md) | **中文**
 
-Hold **Option (⌥)** to record, release to transcribe and paste at the cursor — powered by [mlx-whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper) on Apple Silicon.
+按住**左 Option (⌥)** 键录音，松开自动转写并粘贴到当前光标位置。基于 mlx-whisper，针对 Apple Silicon 优化。
 
-> **Apple Silicon only (M1/M2/M3/M4).** Intel Macs are not supported.
+> **仅支持 Apple Silicon（M1/M2/M3/M4）**，不支持 Intel 芯片的 Mac。
 
-## Requirements
-
-- macOS with Apple Silicon (M1 or later)
-- Python 3.9+
-
-## Installation
+## 安装
 
 ```bash
 git clone https://github.com/yslenjoy/whisper-voice-input.git
@@ -19,54 +14,54 @@ cd whisper-voice-input
 pip3 install mlx-whisper sounddevice pyperclip pynput numpy pyyaml
 ```
 
-The model (`large-v3` by default) is downloaded automatically from HuggingFace on first run.
+首次运行时会自动从 HuggingFace 下载模型（默认 `large-v3`），之后缓存本地。
 
-## Usage
+## 使用
 
 ```bash
 python3 voice_input.py
 ```
 
-1. Hold **Left Option (⌥)** — recording starts
-2. Release — transcription begins, result is pasted at your cursor
+1. 按住**左 Option (⌥)** — 开始录音
+2. 松开 — 自动转写，结果粘贴到光标处
 
-## Permissions (required)
+## 权限配置（必须）
 
-The script needs two permissions under **System Settings → Privacy & Security**. Note: this is **not** the top-level "Accessibility" menu in the sidebar — scroll down to find "Privacy & Security".
+脚本需要两项权限，均在**系统设置 → 隐私与安全性**下配置。注意：不是左侧边栏顶部的「辅助功能」菜单，要往下滚动找到「隐私与安全性」。
 
-### Microphone
+### 麦克风
 
-1. System Settings → Privacy & Security → **Microphone**
-2. Click **+**, navigate to `/Applications/Utilities/Terminal.app` (or your terminal of choice) and add it
-3. Make sure the toggle next to it is **on**
+1. 系统设置 → 隐私与安全性 → **麦克风**
+2. 点击 **+**，找到 `/Applications/Utilities/Terminal.app`（或你使用的终端）并添加
+3. 确认旁边的开关已**打开**
 
-### Accessibility
+### 辅助功能
 
-1. System Settings → Privacy & Security → **Accessibility**
-2. Click **+**, add your terminal app the same way
-3. Make sure the toggle is **on**
+1. 系统设置 → 隐私与安全性 → **辅助功能**
+2. 点击 **+**，同样添加你的终端 app
+3. 确认开关已**打开**
 
-> If a toggle is greyed out, click the lock icon at the bottom of the window and authenticate first.
+> 如果开关是灰色无法点击，先点击窗口底部的锁图标解锁再操作。
 >
-> After granting permissions, **restart your terminal** and run the script again — macOS does not apply new permissions to a running process.
+> 授权后需要**重启终端**再运行脚本 —— macOS 不会对已运行的进程生效新权限。
 
-## Configuration
+## 配置项
 
-Edit the top of `voice_input.py`:
+编辑 `voice_input.py` 顶部：
 
-| Variable | Default | Description |
+| 变量 | 默认值 | 说明 |
 |---|---|---|
-| `BACKEND` | `"mlx"` | `"mlx"` (Apple Silicon) or `"whisper"` (CPU) |
-| `MODEL_NAME` | `"large-v3-turbo"` | See model table below |
-| `LANGUAGE` | `"zh"` | `"zh"` for Mandarin, `None` for auto-detect |
-| `TRIGGER_KEY` | `"alt_l"` | `"alt_l"` / `"alt_r"` / `"ctrl"` / `"f5"` etc. |
+| `BACKEND` | `"mlx"` | `"mlx"`（Apple Silicon）或 `"whisper"`（CPU） |
+| `MODEL_NAME` | `"large-v3-turbo"` | 见下方模型表格 |
+| `LANGUAGE` | `"zh"` | `"zh"` 中文，`None` 自动检测 |
+| `TRIGGER_KEY` | `"alt_l"` | 触发键，默认左 Option |
 
-### Model options
+### 模型选择
 
-| Model | Speed | Accuracy | Notes |
+| 模型 | 速度 | 准确度 | 说明 |
 |---|---|---|---|
-| `large-v3-turbo` | ★★★★★ | ★★★★☆ | **Recommended.** 6x faster than large-v3, accuracy on par with large-v2 |
-| `large-v3` | ★★☆☆☆ | ★★★★★ | Most accurate, slow |
-| `large-v2` | ★★☆☆☆ | ★★★★☆ | Slightly faster than v3 |
-| `medium` | ★★★★☆ | ★★★☆☆ | Good balance for older hardware |
-| `small` | ★★★★★ | ★★☆☆☆ | Fast, lower accuracy |
+| `large-v3-turbo` | ★★★★★ | ★★★★☆ | **推荐**。比 large-v3 快 6 倍，准确度接近 large-v2 |
+| `large-v3` | ★★☆☆☆ | ★★★★★ | 最准，速度慢 |
+| `large-v2` | ★★☆☆☆ | ★★★★☆ | 比 v3 略快 |
+| `medium` | ★★★★☆ | ★★★☆☆ | 老设备的折中选择 |
+| `small` | ★★★★★ | ★★☆☆☆ | 速度最快，准确度一般 |

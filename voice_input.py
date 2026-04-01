@@ -25,15 +25,23 @@ _cfg_path = Path(__file__).parent / "config.yaml"
 with open(_cfg_path) as f:
     _cfg = yaml.safe_load(f)
 
-BACKEND     = _cfg["backend"]
-MODEL_NAME  = _cfg["model_name"]
-LANGUAGE    = _cfg["language"]
-SAMPLE_RATE = _cfg["sample_rate"]
-TRIGGER_KEY = _cfg["trigger_key"]
+BACKEND        = _cfg["backend"]
+MODEL_NAME     = _cfg["model_name"]
+LANGUAGE       = _cfg["language"]
+SAMPLE_RATE    = _cfg["sample_rate"]
+TRIGGER_KEY    = _cfg["trigger_key"]
+INITIAL_PROMPT = _cfg.get("initial_prompt", "")
 # ─────────────────────────────────────────────────────────────────
 
+# ── UI strings (language-aware) ───────────────────────────────────
+_zh = LANGUAGE == "zh"
+
+def _msg(zh_text, en_text):
+    return zh_text if _zh else en_text
+
 # ── Load model ────────────────────────────────────────────────────
-print(f"[*] Loading {BACKEND}/{MODEL_NAME} model...")
+print(_msg(f"[*] 正在加载 {BACKEND}/{MODEL_NAME} 模型...",
+           f"[*] Loading {BACKEND}/{MODEL_NAME} model..."))
 
 if BACKEND == "mlx":
     import mlx_whisper
@@ -48,30 +56,38 @@ if BACKEND == "mlx":
     # check cache before proceeding; prompt user if download is required
     _cached = try_to_load_from_cache(MLX_REPO, "config.json")
     if _cached is None:
-        print(f"[!] Model '{MLX_REPO}' is not cached locally.")
-        _ans = input("    Download now? This may take a few minutes. [y/N] ").strip().lower()
+        print(_msg(f"[!] 模型 '{MLX_REPO}' 未缓存。",
+                   f"[!] Model '{MLX_REPO}' is not cached locally."))
+        _ans = input(_msg("    现在下载？可能需要几分钟。[y/N] ",
+                          "    Download now? This may take a few minutes. [y/N] ")).strip().lower()
         if _ans != "y":
-            print("[*] Aborted.")
+            print(_msg("[*] 已取消。", "[*] Aborted."))
             sys.exit(0)
-        print(f"[*] Downloading {MLX_REPO}...")
+        print(_msg(f"[*] 正在下载 {MLX_REPO}...", f"[*] Downloading {MLX_REPO}..."))
         snapshot_download(MLX_REPO)
-        print("[*] Download complete.")
+        print(_msg("[*] 下载完成。", "[*] Download complete."))
 
     transcribe_fn = lambda audio: mlx_whisper.transcribe(
         audio, path_or_hf_repo=MLX_REPO, language=LANGUAGE,
-        initial_prompt="以下是普通话的简体中文转录。"
+        initial_prompt=INITIAL_PROMPT
     )
-    print(f"[*] MLX model ready ({MLX_REPO})")
+
+    # warm up: force model weights to load now so first real transcription is instant
+    transcribe_fn(np.zeros(SAMPLE_RATE, dtype=np.float32))
+    print(_msg(f"[*] 模型加载完成（{MLX_REPO}）", f"[*] MLX model ready ({MLX_REPO})"))
 else:
     import whisper
     _model = whisper.load_model(MODEL_NAME)
     transcribe_fn = lambda audio: _model.transcribe(
         audio, language=LANGUAGE, fp16=False, without_timestamps=True,
-        initial_prompt="以下是普通话的简体中文转录。"
+        initial_prompt=INITIAL_PROMPT
     )
-    print(f"[*] Whisper {MODEL_NAME} ready")
+    print(_msg(f"[*] 模型加载完成（Whisper {MODEL_NAME}）", f"[*] Whisper {MODEL_NAME} ready"))
 
-print(f"[*] Hold Left Option (⌥) to record, release to transcribe. Ctrl+C to quit.\n")
+_key_label = {"alt_l": "左 Option (⌥)", "alt_r": "右 Option (⌥)"}.get(TRIGGER_KEY, TRIGGER_KEY) if _zh else \
+             {"alt_l": "Left Option (⌥)", "alt_r": "Right Option (⌥)"}.get(TRIGGER_KEY, TRIGGER_KEY)
+print(_msg(f"\n✓ 准备就绪 — 按住{_key_label}开始录音，松开转写并粘贴。Ctrl+C 退出。\n",
+           f"\n✓ Ready — hold {_key_label} to record, release to transcribe. Ctrl+C to quit.\n"))
 
 # ── Runtime state ─────────────────────────────────────────────────
 import pyperclip
@@ -207,7 +223,7 @@ def process_transcription(audio, app):
     for en, zh in PUNCT_MAP.items():
         text = text.replace(en, zh)
 
-    text = text.rstrip("。")
+    text = text.rstrip("。") + " "
 
     ts = time.strftime("%H:%M:%S")
     print(f"\n✓ [{app}] {ts}\n{text}\n{'─' * 30}\n  ⏱ {elapsed:.1f}s")

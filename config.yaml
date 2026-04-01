@@ -12,3 +12,7 @@ sample_rate: 16000
 
 # trigger key: alt_l / alt_r / ctrl / cmd / f5 / f6
 trigger_key: alt_l
+
+# initial prompt: shown to the model before transcription to set style and language expectations
+# keep it short (under 50 words); use examples that reflect your actual speech patterns
+initial_prompt: "以下是普通话的简体中文转录，包含中英文混合内容。例如：这个API的response很快，我们用Python实现这个feature，然后deploy到server上。"
