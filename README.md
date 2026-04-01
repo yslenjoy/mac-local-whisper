@@ -4,15 +4,19 @@
 
 Hold **Option (⌥)** to record, release to transcribe and paste at the cursor — powered by [mlx-whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper) on Apple Silicon.
 
+> **Apple Silicon only (M1/M2/M3/M4).** Intel Macs are not supported.
+
 ## Requirements
 
-- macOS with Apple Silicon (M1/M2/M3)
+- macOS with Apple Silicon (M1 or later)
 - Python 3.9+
 
 ## Installation
 
 ```bash
-pip install mlx-whisper sounddevice pyperclip pynput numpy
+git clone https://github.com/yslenjoy/whisper-voice-input.git
+cd whisper-voice-input
+pip3 install mlx-whisper sounddevice pyperclip pynput numpy
 ```
 
 The model (`large-v3` by default) is downloaded automatically from HuggingFace on first run.
@@ -20,7 +24,7 @@ The model (`large-v3` by default) is downloaded automatically from HuggingFace o
 ## Usage
 
 ```bash
-python voice_input.py
+python3 voice_input.py
 ```
 
 1. Hold **Left Option (⌥)** — recording starts
@@ -28,12 +32,23 @@ python voice_input.py
 
 ## Permissions (required)
 
-In **System Settings → Privacy & Security**:
+The script needs two permissions under **System Settings → Privacy & Security**. Note: this is **not** the top-level "Accessibility" menu in the sidebar — scroll down to find "Privacy & Security".
 
-- **Accessibility** — needed to simulate Cmd+V paste
-- **Microphone** — needed to record audio
+### Microphone
 
-Add your terminal app (Terminal / iTerm2) to both lists.
+1. System Settings → Privacy & Security → **Microphone**
+2. Click **+**, navigate to `/Applications/Utilities/Terminal.app` (or your terminal of choice) and add it
+3. Make sure the toggle next to it is **on**
+
+### Accessibility
+
+1. System Settings → Privacy & Security → **Accessibility**
+2. Click **+**, add your terminal app the same way
+3. Make sure the toggle is **on**
+
+> If a toggle is greyed out, click the lock icon at the bottom of the window and authenticate first.
+>
+> After granting permissions, **restart your terminal** and run the script again — macOS does not apply new permissions to a running process.
 
 ## Configuration
 
