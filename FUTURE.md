@@ -10,8 +10,6 @@
 
 # P2
 
-- [ ] post-processing 规则与 Whisper initial_prompt 融合：探索把标点/格式规则直接通过 prompt 引导模型输出，而不是事后字符串替换，两者职责更清晰
-
 # 代排期
 
 - [ ] 流式输出：mlx-whisper 无 decoder hook，无法逐 token 输出；需换 faster-whisper（有 segment generator）但会失去 Apple Silicon 加速；现阶段性价比低，暂缓
