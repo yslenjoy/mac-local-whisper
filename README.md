@@ -1,33 +1,47 @@
-# Whisper 语音输入
+# Whisper Voice Input
 
-按住 **Option(⌥)** 键录音，松开自动识别并粘贴到当前光标位置。
+**English** | [中文](README_zh.md)
 
-## 首次使用
+Hold **Option (⌥)** to record, release to transcribe and paste at the cursor — powered by [mlx-whisper](https://github.com/ml-explore/mlx-examples/tree/main/whisper) on Apple Silicon.
+
+## Requirements
+
+- macOS with Apple Silicon (M1/M2/M3)
+- Python 3.9+
+
+## Installation
 
 ```bash
-# 安装依赖
-/Library/Developer/CommandLineTools/usr/bin/python3 -m pip install sounddevice pyperclip pynput numpy scipy
-
-# 运行
-/Library/Developer/CommandLineTools/usr/bin/python3 ~/Documents/Developer/whisper-voice-input/voice_input.py
+pip install mlx-whisper sounddevice pyperclip pynput numpy
 ```
 
-## 权限（必须）
+The model (`large-v3` by default) is downloaded automatically from HuggingFace on first run.
 
-macOS 需要授权两项权限（首次运行会弹出提示）：
-- **辅助功能**：用于模拟键盘粘贴
-- **麦克风**：用于录音
+## Usage
 
-在「系统设置 → 隐私与安全性」中手动添加「终端」。
+```bash
+python voice_input.py
+```
 
-## 配置
+1. Hold **Left Option (⌥)** — recording starts
+2. Release — transcription begins, result is pasted at your cursor
 
-编辑 `voice_input.py` 顶部：
-- `MODEL_NAME`：模型大小（tiny/base/small/medium/large）
-- `LANGUAGE`：`"zh"` 中文，`None` 自动检测
-- `TRIGGER_KEY`：触发按键，默认 Option 键
+## Permissions (required)
 
-## 注意
+In **System Settings → Privacy & Security**:
 
-- CPU 运行 medium 模型，3秒音频约需 5-10 秒转写
-- 想更快可换 `small` 模型或安装 `faster-whisper`
+- **Accessibility** — needed to simulate Cmd+V paste
+- **Microphone** — needed to record audio
+
+Add your terminal app (Terminal / iTerm2) to both lists.
+
+## Configuration
+
+Edit the top of `voice_input.py`:
+
+| Variable | Default | Description |
+|---|---|---|
+| `BACKEND` | `"mlx"` | `"mlx"` (Apple Silicon) or `"whisper"` (CPU) |
+| `MODEL_NAME` | `"large-v3"` | `tiny` / `base` / `small` / `medium` / `large` / `large-v3` |
+| `LANGUAGE` | `"zh"` | `"zh"` for Mandarin, `None` for auto-detect |
+| `TRIGGER_KEY` | `"alt_l"` | `"alt_l"` / `"alt_r"` / `"ctrl"` / `"f5"` etc. |
