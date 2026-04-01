@@ -10,6 +10,7 @@ Whisper 语音输入工具
 """
 
 import sys
+import queue
 import threading
 import time
 import subprocess
@@ -19,7 +20,7 @@ import sounddevice as sd
 
 # ── 配置 ──────────────────────────────────────────────────────────
 BACKEND     = "whisper"        # "whisper" 或 "mlx"（Apple Silicon 更快）
-MODEL_NAME  = "medium"         # tiny / base / small / medium / large
+MODEL_NAME  = "large"          # tiny / base / small / medium / large / large-v2 / large-v3
 LANGUAGE    = "zh"             # "zh" 中文，None 自动检测
 SAMPLE_RATE = 16000            # Whisper 固定 16kHz
 TRIGGER_KEY = "alt_l"          # 触发键："alt_l"=左Option，"alt_r"=右Option，"ctrl"，"f5" 等
@@ -57,6 +58,7 @@ audio_chunks   = []
 stream         = None
 lock           = threading.Lock()
 target_app     = None   # 按下热键时记录的 frontmost app
+work_queue     = queue.Queue()  # 转写任务传回主线程，避免 daemon thread 中调用 torch 导致 segfault
 
 # 解析触发键
 KEY_MAP = {"alt": Key.alt, "alt_l": Key.alt_l, "alt_r": Key.alt_r,
@@ -136,19 +138,8 @@ def stop_and_transcribe():
         print("  (静音，已跳过)    ")
         return
 
-    result = transcribe_fn(audio)
-    text = result["text"].strip()
-
-    if not text:
-        print("  (无识别结果)      ")
-        return
-
-    ts = time.strftime("%H:%M:%S")
-    print(f"\n✓ [{target_app}] {ts}\n{text}")
-
-    # 写入剪贴板，切回目标 app 粘贴（兼容中文，绕过辅助功能限制）
-    pyperclip.copy(text)
-    paste_via_osascript(target_app, text)
+    # 把 (audio, app) 交给主线程转写，避免在 daemon thread 调用 torch/C 扩展导致 segfault
+    work_queue.put((audio, target_app))
 
 
 # ── 热键监听 ──────────────────────────────────────────────────────
@@ -168,9 +159,45 @@ def on_release(key):
 listener = keyboard.Listener(on_press=on_press, on_release=on_release)
 listener.start()
 
+def process_transcription(audio, app):
+    """在主线程执行 whisper 转写，避免 daemon thread 中的 segfault"""
+    result = transcribe_fn(audio)
+    text = result["text"].strip()
+
+    if not text:
+        print("  (无识别结果)      ")
+        return
+
+    # 英文标点 → 中文全角标点
+    PUNCT_MAP = {
+        ",": "，",
+        "?": "？",
+        "!": "！",
+        ":": "：",
+        ";": "；",
+        "(": "（",
+        ")": "）",
+    }
+    for en, zh in PUNCT_MAP.items():
+        text = text.replace(en, zh)
+
+    # 末尾去掉句号（包括英文句号已被上面逻辑处理前的中文句号）
+    text = text.rstrip("。")
+
+    ts = time.strftime("%H:%M:%S")
+    print(f"\n✓ [{app}] {ts}\n{text}")
+
+    pyperclip.copy(text)
+    paste_via_osascript(app, text)
+
+
 try:
     while True:
-        time.sleep(0.1)
+        try:
+            audio, app = work_queue.get(timeout=0.1)
+            process_transcription(audio, app)
+        except queue.Empty:
+            pass
 except KeyboardInterrupt:
     print("\n[*] 退出")
     listener.stop()
