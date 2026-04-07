@@ -34,6 +34,27 @@ TRIGGER_KEY    = _cfg["trigger_key"]
 INITIAL_PROMPT = _cfg.get("initial_prompt", "")
 # ─────────────────────────────────────────────────────────────────
 
+# ── Load snippets ────────────────────────────────────────────────
+_snippets_path = Path(__file__).parent / "snippets.json"
+_snippets = []
+if _snippets_path.exists():
+    with open(_snippets_path, encoding="utf-8") as f:
+        _raw = json.load(f)
+    for s in _raw:
+        # flexible pattern: case-insensitive, collapse whitespace
+        pat = re.compile(
+            r"\s*".join(re.escape(ch) for ch in s["trigger"].split()),
+            re.IGNORECASE,
+        )
+        _snippets.append((pat, s["replacement"]))
+
+
+def apply_snippets(text: str) -> str:
+    for pat, replacement in _snippets:
+        text = pat.sub(replacement, text)
+    return text
+# ─────────────────────────────────────────────────────────────────
+
 # ── UI strings (language-aware) ───────────────────────────────────
 _zh = LANGUAGE == "zh"
 
@@ -84,6 +105,10 @@ else:
         initial_prompt=INITIAL_PROMPT
     )
     print(_msg(f"[*] 模型加载完成（Whisper {MODEL_NAME}）", f"[*] Whisper {MODEL_NAME} ready"))
+
+if _snippets:
+    print(_msg(f"[*] 已加载 {len(_snippets)} 条纠错规则",
+               f"[*] Loaded {len(_snippets)} snippet rules"))
 
 _key_label = {"alt_l": "左 Option (⌥)", "alt_r": "右 Option (⌥)"}.get(TRIGGER_KEY, TRIGGER_KEY) if _zh else \
              {"alt_l": "Left Option (⌥)", "alt_r": "Right Option (⌥)"}.get(TRIGGER_KEY, TRIGGER_KEY)
@@ -228,6 +253,8 @@ def process_transcription(audio, app):
         text = text.replace(en, zh)
 
     text = text.rstrip("。") + " "
+
+    text = apply_snippets(text)
 
     ts = time.strftime("%H:%M:%S")
     print(f"\n✓ [{app}] {ts}\n{text}\n{'─' * 30}\n  ⏱ {elapsed:.1f}s")
