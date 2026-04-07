@@ -1,0 +1,5 @@
+[
+  {"trigger": "web coding", "replacement": "vibe coding"},
+  {"trigger": "Queen 3", "replacement": "Qwen3"},
+  {"trigger": "cloud", "replacement": "claude"}
+]
