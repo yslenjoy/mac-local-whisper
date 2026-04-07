@@ -16,3 +16,11 @@ trigger_key: alt_l
 # initial prompt: shown to the model before transcription to set style and language expectations
 # keep it short (under 50 words); use examples that reflect your actual speech patterns
 initial_prompt: "以下是普通话的简体中文转录，包含中英文混合内容。例如：这个API的response很快，我们用Python实现这个feature，然后deploy到server上。"
+
+# ── 微调数据收集 ──────────────────────────────────────────────────
+finetune:
+  enabled: true
+  output_dir: ~/Documents/Developer/whisper-finetune-data
+  audio_format: wav          # wav: 无损通用; flac: 省空间
+  min_duration_s: 0.5        # 太短易幻觉
+  max_duration_s: 30         # 超长分段或跳过

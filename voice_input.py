@@ -32,6 +32,7 @@ LANGUAGE       = _cfg["language"]
 SAMPLE_RATE    = _cfg["sample_rate"]
 TRIGGER_KEY    = _cfg["trigger_key"]
 INITIAL_PROMPT = _cfg.get("initial_prompt", "")
+FT_CFG         = _cfg.get("finetune", {})
 # ─────────────────────────────────────────────────────────────────
 
 # ── UI strings (language-aware) ───────────────────────────────────
@@ -234,6 +235,11 @@ def process_transcription(audio, app):
 
     pyperclip.copy(text)
     paste_via_osascript(app, text)
+
+    # ── finetune data collection ─────────────────────────────────
+    if FT_CFG.get("enabled"):
+        from finetune.collector import save_sample
+        save_sample(audio, text, SAMPLE_RATE, FT_CFG)
 
 
 try:
