@@ -6,6 +6,11 @@ macOS 语音输入工具，按住 Option 键录音，松开自动转写粘贴。
 
 **README 双语同步**：中文版在 `README.md`（主），英文版在 `README_en.md`。修改任意一处功能、配置、安装步骤时，必须同时更新两个文件，保持内容一致。
 
+## 分支规则
+
+- **main**：核心转写流程（voice_input.py 转写逻辑、config.yaml 转写部分、README）
+- **finetune**：微调数据管道（finetune/ 目录、config.yaml 的 finetune block、voice_input.py 里的 finetune hook）
+
 ## 项目结构
 
 - `voice_input.py` — 主程序，所有注释必须用英文
