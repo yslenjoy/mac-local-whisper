@@ -14,6 +14,12 @@ cd whisper-voice-input
 pip3 install mlx-whisper sounddevice pyperclip pynput numpy pyyaml
 ```
 
+微调数据校正（`finetune/auto_correct.py`）额外需要：
+
+```bash
+pip3 install websockets
+```
+
 首次运行时会自动从 HuggingFace 下载模型（默认 `large-v3`），之后缓存本地。
 
 ## 使用
