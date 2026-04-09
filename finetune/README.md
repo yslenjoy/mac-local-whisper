@@ -134,8 +134,9 @@ python3 finetune/export.py --val-ratio 0.2   # 20% 做验证集（默认 15%）
 
 **运行**：
 ```bash
-# 先装依赖
-pip install -r finetune/requirements-train.txt
+# 激活训练专用 conda 环境（首次需先创建）
+conda activate whisper-ft
+# 首次创建：conda create -n whisper-ft python=3.11 -y && pip install -r finetune/requirements-train.txt
 
 # 训练（默认用 whisper-small，Mac 本地约 10 分钟）
 HF_ENDPOINT=https://hf-mirror.com python3 finetune/train.py
