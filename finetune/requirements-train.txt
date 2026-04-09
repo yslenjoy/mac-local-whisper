@@ -1,0 +1,6 @@
+transformers
+datasets
+torch
+torchaudio
+peft
+accelerate
