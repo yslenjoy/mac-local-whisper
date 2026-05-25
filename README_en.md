@@ -20,6 +20,7 @@ pip3 install mlx-whisper sounddevice pyperclip pynput numpy pyyaml
 ```
 
 The model (`large-v3` by default) is downloaded automatically from HuggingFace on first run.
+If you turn `auto_paste` off, `pyperclip` becomes optional.
 
 ## Usage
 
@@ -60,6 +61,7 @@ Edit the top of `voice_input.py`:
 | `MODEL_NAME` | `"large-v3-turbo"` | See model table below |
 | `LANGUAGE` | `"zh"` | `"zh"` for Mandarin, `None` for auto-detect |
 | `TRIGGER_KEY` | `"alt_l"` | `"alt_l"` / `"alt_r"` / `"ctrl"` / `"f5"` etc. |
+| `AUTO_PASTE` | `true` | `true` copies the result to the clipboard and pastes it, `false` only transcribes |
 
 ### Model options
 

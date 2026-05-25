@@ -32,6 +32,9 @@ LANGUAGE       = _cfg["language"]
 SAMPLE_RATE    = _cfg["sample_rate"]
 TRIGGER_KEY    = _cfg["trigger_key"]
 INITIAL_PROMPT = _cfg.get("initial_prompt", "")
+AUTO_PASTE     = _cfg.get("auto_paste", True)
+# Keep the original clipboard by default when auto-pasting.
+PRESERVE_CLIPBOARD = True
 # ─────────────────────────────────────────────────────────────────
 
 # ── Load snippets ────────────────────────────────────────────────
@@ -112,11 +115,17 @@ if _snippets:
 
 _key_label = {"alt_l": "左 Option (⌥)", "alt_r": "右 Option (⌥)"}.get(TRIGGER_KEY, TRIGGER_KEY) if _zh else \
              {"alt_l": "Left Option (⌥)", "alt_r": "Right Option (⌥)"}.get(TRIGGER_KEY, TRIGGER_KEY)
-print(_msg(f"\n✓ 准备就绪 — 按住{_key_label}开始录音，松开转写并粘贴。Ctrl+C 退出。\n",
-           f"\n✓ Ready — hold {_key_label} to record, release to transcribe. Ctrl+C to quit.\n"))
+if AUTO_PASTE:
+    _ready_zh = f"\n✓ 准备就绪 — 按住{_key_label}开始录音，松开转写并粘贴。Ctrl+C 退出。\n"
+    _ready_en = f"\n✓ Ready — hold {_key_label} to record, release to transcribe and paste. Ctrl+C to quit.\n"
+else:
+    _ready_zh = f"\n✓ 准备就绪 — 按住{_key_label}开始录音，松开仅转写，不会覆盖剪贴板。Ctrl+C 退出。\n"
+    _ready_en = f"\n✓ Ready — hold {_key_label} to record, release to transcribe only. Clipboard will be left unchanged. Ctrl+C to quit.\n"
+print(_msg(_ready_zh, _ready_en))
 
 # ── Runtime state ─────────────────────────────────────────────────
-import pyperclip
+if AUTO_PASTE:
+    import pyperclip
 from pynput import keyboard
 from pynput.keyboard import Controller, Key
 
@@ -154,6 +163,23 @@ def paste_via_osascript(app_name, text):
     time.sleep(0.2)
     with kb_ctrl.pressed(Key.cmd):
         kb_ctrl.tap("v")
+
+
+def paste_text(text: str, app_name: str):
+    """Paste text and restore the previous clipboard when configured."""
+    previous_clipboard = None
+    if PRESERVE_CLIPBOARD:
+        try:
+            previous_clipboard = pyperclip.paste()
+        except Exception:
+            previous_clipboard = None
+
+    pyperclip.copy(text)
+    paste_via_osascript(app_name, text)
+
+    if PRESERVE_CLIPBOARD and previous_clipboard is not None:
+        time.sleep(0.2)
+        pyperclip.copy(previous_clipboard)
 
 
 def start_recording():
@@ -259,8 +285,8 @@ def process_transcription(audio, app):
     ts = time.strftime("%H:%M:%S")
     print(f"\n✓ [{app}] {ts}\n{text}\n{'─' * 30}\n  ⏱ {elapsed:.1f}s")
 
-    pyperclip.copy(text)
-    paste_via_osascript(app, text)
+    if AUTO_PASTE:
+        paste_text(text, app)
 
 
 try:
