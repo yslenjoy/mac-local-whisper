@@ -136,6 +136,8 @@ stream       = None
 lock         = threading.Lock()
 target_app   = None
 work_queue   = queue.Queue()  # pass work to main thread to avoid segfault in daemon threads
+control_queue = queue.Queue()
+shutdown_event = threading.Event()
 
 KEY_MAP = {"alt": Key.alt, "alt_l": Key.alt_l, "alt_r": Key.alt_r,
            "ctrl": Key.ctrl, "cmd": Key.cmd,
@@ -197,39 +199,62 @@ def start_recording():
         if is_recording:
             audio_chunks.append(indata.copy())
 
-    stream = sd.InputStream(
-        samplerate=SAMPLE_RATE, channels=1,
-        dtype="float32", callback=_cb, blocksize=1024,
-    )
-    stream.start()
+    try:
+        stream = sd.InputStream(
+            samplerate=SAMPLE_RATE, channels=1,
+            dtype="float32", callback=_cb, blocksize=1024,
+        )
+        stream.start()
+    except Exception as exc:
+        if stream is not None:
+            try:
+                stream.close()
+            except Exception:
+                pass
+        with lock:
+            is_recording = False
+            audio_chunks = []
+            target_app = None
+            stream = None
+        print(_msg(f"[!] 录音启动失败：{exc}", f"[!] Failed to start recording: {exc}"))
 
 
 def stop_and_transcribe():
-    global is_recording, stream
+    global is_recording, stream, audio_chunks, target_app
 
     with lock:
         if not is_recording:
             return
         is_recording = False
-
-    if stream:
-        stream.stop()
-        stream.close()
+        current_stream = stream
+        current_app = target_app
+        current_chunks = audio_chunks
         stream = None
+        target_app = None
 
-    if not audio_chunks:
+    if current_stream:
+        try:
+            current_stream.stop()
+        finally:
+            current_stream.close()
+
+    with lock:
+        if audio_chunks is current_chunks:
+            audio_chunks = []
+
+    if not current_chunks:
         return
 
     print("◎ 转写中...", flush=True)
 
-    audio = np.concatenate(audio_chunks, axis=0).flatten()
+    audio = np.concatenate(current_chunks, axis=0).flatten()
 
     if np.sqrt(np.mean(audio ** 2)) < 0.001:
         print("  (静音，已跳过)    ")
         return
 
     # hand off to main thread — calling torch/C extensions from a daemon thread causes segfault
-    work_queue.put((audio, target_app))
+    work_queue.put((audio, current_app))
 
 
 # ── Hotkey listener ───────────────────────────────────────────────
@@ -238,16 +263,36 @@ _pressed = set()
 def on_press(key):
     if key == _trigger and key not in _pressed:
         _pressed.add(key)
-        threading.Thread(target=start_recording, daemon=True).start()
+        control_queue.put("start")
 
 def on_release(key):
     if key == _trigger and key in _pressed:
         _pressed.discard(key)
-        threading.Thread(target=stop_and_transcribe, daemon=True).start()
+        control_queue.put("stop")
 
 
 listener = keyboard.Listener(on_press=on_press, on_release=on_release)
 listener.start()
+
+
+def control_loop():
+    while not shutdown_event.is_set():
+        try:
+            action = control_queue.get(timeout=0.1)
+        except queue.Empty:
+            continue
+
+        try:
+            if action == "start":
+                start_recording()
+            elif action == "stop":
+                stop_and_transcribe()
+        except Exception as exc:
+            print(_msg(f"[!] 控制线程异常：{exc}", f"[!] Control loop error: {exc}"))
+
+
+control_thread = threading.Thread(target=control_loop, name="control-loop")
+control_thread.start()
 
 
 def process_transcription(audio, app):
@@ -298,5 +343,21 @@ try:
             pass
 except KeyboardInterrupt:
     print("\n[*] Exiting")
+finally:
+    shutdown_event.set()
     listener.stop()
+    with lock:
+        current_stream = stream
+        stream = None
+        is_recording = False
+    if current_stream:
+        try:
+            current_stream.stop()
+        finally:
+            current_stream.close()
+    try:
+        listener.join(timeout=1.0)
+    except Exception:
+        pass
+    control_thread.join(timeout=1.0)
     sys.exit(0)
